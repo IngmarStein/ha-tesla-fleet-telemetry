@@ -154,9 +154,9 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_MODULE_TEMP_MIN: 30,
 }
 
-# Named interval presets.  ``high_rate`` rewrites Location/VehicleSpeed/Gear/
-# charging-power signals down to ~1s for live trace / driving log style use;
-# all other signals keep their default ceilings.  Apply via the
+# Named interval presets.  ``high_rate`` rewrites Location/VehicleSpeed down to
+# 1s for live trace / driving log style use; all other signals (Gear, charging,
+# etc.) keep their default ceilings.  Apply via the
 # ``set_interval_preset`` service; revert with the ``default`` preset (or just
 # wait for the next auto-resync, which always re-pushes defaults).
 INTERVAL_PRESET_DEFAULT = "default"
@@ -167,12 +167,6 @@ INTERVAL_PRESET_OVERRIDES: dict[str, dict[str, int]] = {
     INTERVAL_PRESET_HIGH_RATE: {
         SIGNAL_LOCATION: 1,
         SIGNAL_VEHICLE_SPEED: 1,
-        SIGNAL_GEAR: 1,
-        SIGNAL_AC_CHARGING_POWER: 2,
-        SIGNAL_DC_CHARGING_POWER: 2,
-        SIGNAL_CHARGER_VOLTAGE: 2,
-        SIGNAL_CHARGE_AMPS: 2,
-        SIGNAL_CHARGE_RATE_MILES_PER_HOUR: 2,
     },
 }
 
