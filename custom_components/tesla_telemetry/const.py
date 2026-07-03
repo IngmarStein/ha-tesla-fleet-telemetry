@@ -130,13 +130,15 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_LOCKED: 1,
     SIGNAL_SENTRY_MODE: 5,
     SIGNAL_DRIVER_SEAT_OCCUPIED: 5,
-    # user-set / rare changes — high ceiling, no real cost
-    SIGNAL_CHARGE_LIMIT_SOC: 3600,
+    # user-set / discrete — push-on-change delivers instantly, so the ceiling
+    # only bounds back-to-back changes; keep it low, there's no flood risk
+    SIGNAL_CHARGE_LIMIT_SOC: 10,
     SIGNAL_ODOMETER: 300,
-    SIGNAL_TPMS_PRESSURE_FL: 300,
-    SIGNAL_TPMS_PRESSURE_FR: 300,
-    SIGNAL_TPMS_PRESSURE_RL: 300,
-    SIGNAL_TPMS_PRESSURE_RR: 300,
+    # TPMS drifts (warmup / slow leak) — 30s tracks it without flooding
+    SIGNAL_TPMS_PRESSURE_FL: 30,
+    SIGNAL_TPMS_PRESSURE_FR: 30,
+    SIGNAL_TPMS_PRESSURE_RL: 30,
+    SIGNAL_TPMS_PRESSURE_RR: 30,
     SIGNAL_SOFTWARE_UPDATE_VERSION: 3600,
     SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT: 60,
     SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT: 60,
