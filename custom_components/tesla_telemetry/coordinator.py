@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -62,6 +63,13 @@ class TeslaTelemetryCoordinator:
         self.vin = vin
         self.vehicle_name = vehicle_name
         self._samples: dict[str, SignalSample] = {}
+        # Signal accounting. Each published datum is one Tesla-billed signal.
+        # ``signals_since_start`` counts everything received this process;
+        # ``restored_signal_base`` is the lifetime total the counter sensor
+        # restores across restarts, so ``lifetime_signals`` stays monotonic.
+        self.signals_since_start = 0
+        self.restored_signal_base = 0
+        self.signal_counts: Counter[str] = Counter()
         # Every entity for this vehicle attaches to one HA device, named
         # after the vehicle so multiple Teslas stay cleanly separated.
         self.device_info = DeviceInfo(
@@ -80,6 +88,8 @@ class TeslaTelemetryCoordinator:
         payload_created_at: float | None = None,
     ) -> None:
         """Record a new value and notify subscribers."""
+        self.signals_since_start += 1
+        self.signal_counts[name] += 1
         sample = SignalSample(
             value=value,
             received_at=time.time(),
@@ -89,6 +99,12 @@ class TeslaTelemetryCoordinator:
         async_dispatcher_send(
             self.hass, signal_dispatcher_topic(self.vin, name), sample
         )
+
+    @property
+    def lifetime_signals(self) -> int:
+        """Total signals ever received for this vehicle — the restored
+        base plus everything counted since this process started."""
+        return self.restored_signal_base + self.signals_since_start
 
     def get(self, name: str) -> SignalSample | None:
         return self._samples.get(name)

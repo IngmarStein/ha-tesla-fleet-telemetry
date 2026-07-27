@@ -180,6 +180,26 @@ CONF_INTERVAL_PRESET = "interval_preset"
 # After this many missed intervals an entity reports `unavailable`.
 STALE_INTERVAL_MULTIPLIER = 4
 
+# --- Signal accounting -------------------------------------------------
+# Every datum the vehicle streams is one Tesla-billed "signal". The
+# coordinator counts them at the single choke point (``async_publish``);
+# the `Signals received` sensor exposes the running total plus a per-signal
+# breakdown, and `Estimated signal cost` multiplies it by the rate below.
+#
+# The counter sensors flush to HA state on a timer rather than per signal —
+# writing a state row on every signal would flood the recorder with exactly
+# the volume we're trying to measure. One write per interval, whatever the
+# signal rate.
+SIGNAL_COUNT_FLUSH_INTERVAL_SECONDS = 60
+
+# Estimated streaming cost. Tesla bills ~$1 per 150,000 streaming signals
+# (per data point); the default mirrors that published US rate, expressed
+# per million signals so it stays a readable number to override. Configured
+# per entry via the options flow (``entry.options``) so the estimate can
+# track Tesla's pricing or a non-US region.
+CONF_COST_PER_MILLION_SIGNALS = "cost_per_million_signals"
+DEFAULT_COST_PER_MILLION_SIGNALS = 1_000_000 / 150_000  # ≈ 6.667
+
 # Storage (homeassistant.helpers.storage.Store)
 STORAGE_VERSION = 1
 STORAGE_KEY_PRIVATE_KEY = "tesla_telemetry_private_key"

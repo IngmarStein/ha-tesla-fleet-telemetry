@@ -11,7 +11,7 @@ only its functional name (e.g. "Speed").
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from homeassistant.components.sensor import (
@@ -22,6 +22,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
+    EntityCategory,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
@@ -35,9 +36,13 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
+    CONF_COST_PER_MILLION_SIGNALS,
+    DEFAULT_COST_PER_MILLION_SIGNALS,
     DOMAIN,
+    SIGNAL_COUNT_FLUSH_INTERVAL_SECONDS,
     SIGNAL_AC_CHARGING_ENERGY_IN,
     SIGNAL_AC_CHARGING_POWER,
     SIGNAL_BATTERY_LEVEL,
@@ -177,6 +182,9 @@ async def async_setup_entry(
             ModuleTempMaxSensor(coordinator),
             ModuleTempMinSensor(coordinator),
             AvgBatteryTempSensor(coordinator),
+            # Signal accounting / estimated cost
+            SignalsReceivedSensor(coordinator),
+            EstimatedSignalCostSensor(coordinator, entry),
         ]
     )
 
@@ -911,3 +919,131 @@ class AvgBatteryTempSensor(_BaseTelemetrySensor):
             self._attr_native_value = None
             return
         self._attr_native_value = (hi + lo) / 2.0
+
+
+# ---------------------------------------------------------------------------
+# Signal accounting / estimated cost
+# ---------------------------------------------------------------------------
+class _SignalStatSensor(RestoreSensor):
+    """Diagnostic sensor reporting a coordinator-maintained running total.
+
+    Flushes to HA state on a fixed timer instead of on every signal: the
+    whole point is to *measure* signal volume, so writing a state row per
+    signal would recreate the recorder load we're trying to observe. One
+    write per ``SIGNAL_COUNT_FLUSH_INTERVAL_SECONDS`` regardless of rate.
+    """
+
+    _attr_should_poll = False
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
+        self._coordinator = coordinator
+        self._attr_device_info = coordinator.device_info
+
+    async def async_added_to_hass(self) -> None:
+        last = await self.async_get_last_sensor_data()
+        restored = last.native_value if last is not None else None
+        self._apply_restore(restored)
+        self.async_write_ha_state()
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass,
+                self._flush,
+                timedelta(seconds=SIGNAL_COUNT_FLUSH_INTERVAL_SECONDS),
+            )
+        )
+
+    def _apply_restore(self, restored: Any) -> None:
+        """Seed persisted lifetime state from the restored native value.
+
+        Default no-op — purely derived sensors (e.g. cost) have nothing of
+        their own to restore.
+        """
+
+    @callback
+    def _flush(self, _now: datetime) -> None:
+        self.async_write_ha_state()
+
+
+class SignalsReceivedSensor(_SignalStatSensor):
+    """Lifetime count of Tesla-billed signals received for this vehicle.
+
+    ``TOTAL_INCREASING`` so it feeds long-term statistics and a
+    ``utility_meter`` (daily/monthly signals). The ``by_signal`` breakdown in
+    the attributes covers only the current process (``signals_since_restart``);
+    the state itself is the restored lifetime total plus that.
+    """
+
+    _attr_name = "Signals received"
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_icon = "mdi:counter"
+
+    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.vin}_signals_received_telemetry"
+
+    def _apply_restore(self, restored: Any) -> None:
+        if restored is None:
+            return
+        try:
+            self._coordinator.restored_signal_base = int(float(restored))
+        except (TypeError, ValueError):
+            pass
+
+    @property
+    def native_value(self) -> int:
+        return self._coordinator.lifetime_signals
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "signals_since_restart": self._coordinator.signals_since_start,
+            "by_signal": dict(self._coordinator.signal_counts.most_common()),
+        }
+
+
+class EstimatedSignalCostSensor(_SignalStatSensor):
+    """Running estimate of what Tesla bills for this vehicle's stream.
+
+    Purely derived: lifetime signal count × the configured rate (read live
+    from ``entry.options``, so editing it in the options flow takes effect on
+    the next flush). Rendered in the HA-configured currency.
+    """
+
+    _attr_name = "Estimated signal cost"
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 2
+    _attr_icon = "mdi:cash"
+
+    def __init__(
+        self, coordinator: TeslaTelemetryCoordinator, entry: ConfigEntry
+    ) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = (
+            f"{coordinator.vin}_estimated_signal_cost_telemetry"
+        )
+
+    @property
+    def _rate_per_million(self) -> float:
+        return self._entry.options.get(
+            CONF_COST_PER_MILLION_SIGNALS, DEFAULT_COST_PER_MILLION_SIGNALS
+        )
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        return (self.hass.config.currency if self.hass else None) or "USD"
+
+    @property
+    def native_value(self) -> float:
+        signals = self._coordinator.lifetime_signals
+        return round(signals * self._rate_per_million / 1_000_000, 2)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "cost_per_million_signals": round(self._rate_per_million, 6),
+            "signals_counted": self._coordinator.lifetime_signals,
+        }

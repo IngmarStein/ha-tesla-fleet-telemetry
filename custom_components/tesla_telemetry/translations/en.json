@@ -48,5 +48,16 @@
       "no_vehicles": "Tesla returned no vehicles for this account.",
       "cannot_connect": "Could not reach Tesla. Check network connectivity and try again."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Signal cost estimate",
+        "description": "Tesla bills for Fleet Telemetry per streaming signal (one per data point). This rate drives the “Estimated signal cost” sensor. The default (≈ 6.67 per million) mirrors Tesla's published US rate of roughly $1 per 150,000 signals — adjust it for your region or if Tesla's pricing changes. It only affects the estimate, not what Tesla actually charges.",
+        "data": {
+          "cost_per_million_signals": "Cost per 1,000,000 signals"
+        }
+      }
+    }
   }
 }

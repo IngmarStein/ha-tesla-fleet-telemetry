@@ -30,10 +30,16 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 from homeassistant.helpers import aiohttp_client, config_entry_oauth2_flow, selector
 
 from .const import (
+    CONF_COST_PER_MILLION_SIGNALS,
     CONF_HOSTNAME,
     CONF_PARTNER_DOMAIN,
     CONF_PORT,
@@ -42,6 +48,7 @@ from .const import (
     CONF_REGION,
     CONF_VEHICLE_NAME,
     CONF_VIN,
+    DEFAULT_COST_PER_MILLION_SIGNALS,
     DEFAULT_REGION,
     DOMAIN,
     FLEET_API_BASE_URLS,
@@ -75,6 +82,13 @@ class TeslaTelemetryOAuth2FlowHandler(
     @property
     def logger(self) -> logging.Logger:
         return _LOGGER
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> "TeslaTelemetryOptionsFlow":
+        return TeslaTelemetryOptionsFlow()
 
     @property
     def extra_authorize_data(self) -> dict[str, Any]:
@@ -211,6 +225,33 @@ class TeslaTelemetryOAuth2FlowHandler(
             data_schema=self.add_suggested_values_to_schema(schema, suggested),
             errors=errors,
         )
+
+
+class TeslaTelemetryOptionsFlow(OptionsFlow):
+    """Adjust the rate used by the estimated signal-cost sensor.
+
+    Tesla bills per streaming signal; the default mirrors the published US
+    rate (~$1 / 150,000 signals). Stored on ``entry.options`` and read live
+    by ``EstimatedSignalCostSensor`` — no reload needed.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = self.config_entry.options.get(
+            CONF_COST_PER_MILLION_SIGNALS, DEFAULT_COST_PER_MILLION_SIGNALS
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_COST_PER_MILLION_SIGNALS, default=current
+                ): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
 
 
 def _validate_partner_key_pem(pem: str) -> str | None:
