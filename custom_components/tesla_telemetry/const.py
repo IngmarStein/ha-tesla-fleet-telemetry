@@ -9,28 +9,21 @@ DOMAIN = "tesla_telemetry"
 SIGNAL_LOCATION = "Location"
 SIGNAL_GPS_STATE = "GpsState"
 SIGNAL_VEHICLE_SPEED = "VehicleSpeed"
-SIGNAL_ODOMETER = "Odometer"
 SIGNAL_GEAR = "Gear"
 SIGNAL_DESTINATION_NAME = "DestinationName"
 SIGNAL_DESTINATION_LOCATION = "DestinationLocation"
 SIGNAL_MILES_TO_ARRIVAL = "MilesToArrival"
 SIGNAL_MINUTES_TO_ARRIVAL = "MinutesToArrival"
-SIGNAL_ROUTE_TRAFFIC_DELAY = "RouteTrafficMinutesDelay"
 # ----- Battery / range -----
 SIGNAL_BATTERY_LEVEL = "BatteryLevel"
 SIGNAL_SOC = "Soc"
 SIGNAL_EST_BATTERY_RANGE = "EstBatteryRange"
 SIGNAL_RATED_RANGE = "RatedRange"
-SIGNAL_IDEAL_BATTERY_RANGE = "IdealBatteryRange"
 # ----- Charging -----
-SIGNAL_DETAILED_CHARGE_STATE = "DetailedChargeState"
-SIGNAL_CHARGE_RATE_MILES_PER_HOUR = "ChargeRateMilePerHour"
 SIGNAL_AC_CHARGING_POWER = "ACChargingPower"
 SIGNAL_DC_CHARGING_POWER = "DCChargingPower"
 SIGNAL_AC_CHARGING_ENERGY_IN = "ACChargingEnergyIn"
 SIGNAL_DC_CHARGING_ENERGY_IN = "DCChargingEnergyIn"
-SIGNAL_CHARGE_AMPS = "ChargeAmps"
-SIGNAL_CHARGER_VOLTAGE = "ChargerVoltage"
 SIGNAL_FAST_CHARGER_PRESENT = "FastChargerPresent"
 SIGNAL_CHARGING_CABLE_TYPE = "ChargingCableType"
 SIGNAL_CHARGE_LIMIT_SOC = "ChargeLimitSoc"
@@ -39,12 +32,8 @@ SIGNAL_CHARGE_PORT_DOOR_OPEN = "ChargePortDoorOpen"
 # ----- Climate / cabin -----
 SIGNAL_INSIDE_TEMP = "InsideTemp"
 SIGNAL_OUTSIDE_TEMP = "OutsideTemp"
-SIGNAL_HVAC_POWER = "HvacPower"
 SIGNAL_HVAC_AC_ENABLED = "HvacACEnabled"
 SIGNAL_HVAC_AUTO_MODE = "HvacAutoMode"
-SIGNAL_HVAC_LEFT_TEMP_REQUEST = "HvacLeftTemperatureRequest"
-SIGNAL_HVAC_RIGHT_TEMP_REQUEST = "HvacRightTemperatureRequest"
-SIGNAL_DEFROST_MODE = "DefrostMode"
 # ----- Body / security -----
 SIGNAL_DOOR_STATE = "DoorState"
 SIGNAL_WINDOW_FRONT_DRIVER = "FdWindow"
@@ -52,13 +41,7 @@ SIGNAL_WINDOW_FRONT_PASSENGER = "FpWindow"
 SIGNAL_WINDOW_REAR_DRIVER = "RdWindow"
 SIGNAL_WINDOW_REAR_PASSENGER = "RpWindow"
 SIGNAL_LOCKED = "Locked"
-SIGNAL_SENTRY_MODE = "SentryMode"
 SIGNAL_DRIVER_SEAT_OCCUPIED = "DriverSeatOccupied"
-# ----- TPMS -----
-SIGNAL_TPMS_PRESSURE_FL = "TpmsPressureFl"
-SIGNAL_TPMS_PRESSURE_FR = "TpmsPressureFr"
-SIGNAL_TPMS_PRESSURE_RL = "TpmsPressureRl"
-SIGNAL_TPMS_PRESSURE_RR = "TpmsPressureRr"
 # ----- Software update -----
 SIGNAL_SOFTWARE_UPDATE_VERSION = "SoftwareUpdateVersion"
 SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT = "SoftwareUpdateDownloadPercentComplete"
@@ -68,10 +51,6 @@ SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT = "SoftwareUpdateInstallationPercentComplete"
 # report the rear drive unit, so the front entities stay unavailable on them.
 SIGNAL_MOTOR_STATOR_TEMP_FRONT = "DiStatorTempF"
 SIGNAL_MOTOR_STATOR_TEMP_REAR = "DiStatorTempR"
-SIGNAL_MOTOR_TORQUE_FRONT = "DiTorqueActualF"
-SIGNAL_MOTOR_TORQUE_REAR = "DiTorqueActualR"
-SIGNAL_LATERAL_ACCELERATION = "LateralAcceleration"
-SIGNAL_LONGITUDINAL_ACCELERATION = "LongitudinalAcceleration"
 # HV battery pack
 SIGNAL_PACK_VOLTAGE = "PackVoltage"
 SIGNAL_PACK_CURRENT = "PackCurrent"
@@ -92,16 +71,11 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_DESTINATION_LOCATION: 30,
     SIGNAL_MILES_TO_ARRIVAL: 15,
     SIGNAL_MINUTES_TO_ARRIVAL: 15,
-    SIGNAL_ROUTE_TRAFFIC_DELAY: 30,
     # charging — fluctuates while charging, idle otherwise
-    SIGNAL_DETAILED_CHARGE_STATE: 5,
-    SIGNAL_CHARGE_RATE_MILES_PER_HOUR: 10,
     SIGNAL_AC_CHARGING_POWER: 10,
     SIGNAL_DC_CHARGING_POWER: 10,
     SIGNAL_AC_CHARGING_ENERGY_IN: 30,
     SIGNAL_DC_CHARGING_ENERGY_IN: 30,
-    SIGNAL_CHARGE_AMPS: 10,
-    SIGNAL_CHARGER_VOLTAGE: 10,
     SIGNAL_FAST_CHARGER_PRESENT: 60,
     SIGNAL_CHARGING_CABLE_TYPE: 60,
     SIGNAL_TIME_TO_FULL_CHARGE: 30,
@@ -111,16 +85,11 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_SOC: 30,
     SIGNAL_EST_BATTERY_RANGE: 30,
     SIGNAL_RATED_RANGE: 60,
-    SIGNAL_IDEAL_BATTERY_RANGE: 60,
     # climate / cabin
     SIGNAL_INSIDE_TEMP: 30,
     SIGNAL_OUTSIDE_TEMP: 60,
-    SIGNAL_HVAC_POWER: 5,
     SIGNAL_HVAC_AC_ENABLED: 30,
     SIGNAL_HVAC_AUTO_MODE: 30,
-    SIGNAL_HVAC_LEFT_TEMP_REQUEST: 60,
-    SIGNAL_HVAC_RIGHT_TEMP_REQUEST: 60,
-    SIGNAL_DEFROST_MODE: 30,
     # body / security — discrete, push-on-change is what we want
     SIGNAL_DOOR_STATE: 1,
     SIGNAL_WINDOW_FRONT_DRIVER: 1,
@@ -128,17 +97,10 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_WINDOW_REAR_DRIVER: 1,
     SIGNAL_WINDOW_REAR_PASSENGER: 1,
     SIGNAL_LOCKED: 1,
-    SIGNAL_SENTRY_MODE: 5,
     SIGNAL_DRIVER_SEAT_OCCUPIED: 5,
     # user-set / discrete — push-on-change delivers instantly, so the ceiling
     # only bounds back-to-back changes; keep it low, there's no flood risk
     SIGNAL_CHARGE_LIMIT_SOC: 10,
-    SIGNAL_ODOMETER: 300,
-    # TPMS drifts (warmup / slow leak) — 30s tracks it without flooding
-    SIGNAL_TPMS_PRESSURE_FL: 30,
-    SIGNAL_TPMS_PRESSURE_FR: 30,
-    SIGNAL_TPMS_PRESSURE_RL: 30,
-    SIGNAL_TPMS_PRESSURE_RR: 30,
     SIGNAL_SOFTWARE_UPDATE_VERSION: 3600,
     SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT: 60,
     SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT: 60,
@@ -146,10 +108,6 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     # to keep them live without flooding (push-on-change still applies)
     SIGNAL_MOTOR_STATOR_TEMP_FRONT: 10,
     SIGNAL_MOTOR_STATOR_TEMP_REAR: 10,
-    SIGNAL_MOTOR_TORQUE_FRONT: 5,
-    SIGNAL_MOTOR_TORQUE_REAR: 5,
-    SIGNAL_LATERAL_ACCELERATION: 5,
-    SIGNAL_LONGITUDINAL_ACCELERATION: 5,
     SIGNAL_PACK_VOLTAGE: 5,
     SIGNAL_PACK_CURRENT: 5,
     SIGNAL_MODULE_TEMP_MAX: 30,

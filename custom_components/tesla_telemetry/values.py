@@ -120,34 +120,6 @@ def value_is_window_open(value: Any) -> bool | None:
     return None
 
 
-# Friendly mapping for charging state.  Returned as the SENSOR state string
-# so the sensor entity can use it directly.
-_DETAILED_CHARGE_FRIENDLY = {
-    "DetailedChargeStateUnknown": None,
-    "DetailedChargeStateDisconnected": "disconnected",
-    "DetailedChargeStateNoPower": "no_power",
-    "DetailedChargeStateStarting": "starting",
-    "DetailedChargeStateCharging": "charging",
-    "DetailedChargeStateComplete": "complete",
-    "DetailedChargeStateStopped": "stopped",
-}
-
-
-def value_as_charge_state(value: Any) -> str | None:
-    name = value_as_enum_name(value)
-    if name is None:
-        return None
-    return _DETAILED_CHARGE_FRIENDLY.get(name, name)
-
-
-def value_charging_active(value: Any) -> bool | None:
-    """True if the car is actively pulling power (Charging or Starting)."""
-    name = value_as_enum_name(value)
-    if name is None:
-        return None
-    return name in ("DetailedChargeStateCharging", "DetailedChargeStateStarting")
-
-
 __all__ = [
     "value_as_float",
     "value_as_bool",
@@ -156,8 +128,6 @@ __all__ = [
     "value_as_door_state",
     "value_as_window_state",
     "value_is_window_open",
-    "value_as_charge_state",
-    "value_charging_active",
 ]
 
 

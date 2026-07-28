@@ -28,7 +28,6 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfLength,
     UnitOfPower,
-    UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
     UnitOfTime,
@@ -46,45 +45,29 @@ from .const import (
     SIGNAL_AC_CHARGING_ENERGY_IN,
     SIGNAL_AC_CHARGING_POWER,
     SIGNAL_BATTERY_LEVEL,
-    SIGNAL_CHARGE_AMPS,
     SIGNAL_CHARGE_LIMIT_SOC,
-    SIGNAL_CHARGE_RATE_MILES_PER_HOUR,
-    SIGNAL_CHARGER_VOLTAGE,
     SIGNAL_CHARGING_CABLE_TYPE,
     SIGNAL_DC_CHARGING_ENERGY_IN,
     SIGNAL_DC_CHARGING_POWER,
-    SIGNAL_DETAILED_CHARGE_STATE,
     SIGNAL_EST_BATTERY_RANGE,
     SIGNAL_FAST_CHARGER_PRESENT,
     SIGNAL_GEAR,
-    SIGNAL_HVAC_LEFT_TEMP_REQUEST,
-    SIGNAL_HVAC_RIGHT_TEMP_REQUEST,
     SIGNAL_INSIDE_TEMP,
-    SIGNAL_LATERAL_ACCELERATION,
-    SIGNAL_LONGITUDINAL_ACCELERATION,
     SIGNAL_MILES_TO_ARRIVAL,
     SIGNAL_MINUTES_TO_ARRIVAL,
     SIGNAL_MODULE_TEMP_MAX,
     SIGNAL_MODULE_TEMP_MIN,
     SIGNAL_MOTOR_STATOR_TEMP_FRONT,
     SIGNAL_MOTOR_STATOR_TEMP_REAR,
-    SIGNAL_MOTOR_TORQUE_FRONT,
-    SIGNAL_MOTOR_TORQUE_REAR,
-    SIGNAL_ODOMETER,
     SIGNAL_OUTSIDE_TEMP,
     SIGNAL_PACK_CURRENT,
     SIGNAL_PACK_VOLTAGE,
     SIGNAL_RATED_RANGE,
-    SIGNAL_ROUTE_TRAFFIC_DELAY,
     SIGNAL_SOC,
     SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT,
     SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT,
     SIGNAL_SOFTWARE_UPDATE_VERSION,
     SIGNAL_TIME_TO_FULL_CHARGE,
-    SIGNAL_TPMS_PRESSURE_FL,
-    SIGNAL_TPMS_PRESSURE_FR,
-    SIGNAL_TPMS_PRESSURE_RL,
-    SIGNAL_TPMS_PRESSURE_RR,
     SIGNAL_VEHICLE_SPEED,
 )
 from .coordinator import (
@@ -94,28 +77,10 @@ from .coordinator import (
 )
 from .values import (
     value_as_bool,
-    value_as_charge_state,
     value_as_enum_name,
     value_as_float,
     value_as_string,
 )
-
-# Tesla reports lateral/longitudinal acceleration in m/s² and motor torque in
-# newton-metres; neither has a Home Assistant device class, so use literal
-# units. We convert acceleration to g (the unit a Track-Mode G-meter expects).
-UNIT_GRAVITY = "g"
-UNIT_NEWTON_METRE = "Nm"
-STANDARD_GRAVITY = 9.80665  # m/s² per g
-
-
-def _value_as_g(value: Any) -> float | None:
-    """Decode an acceleration sample (m/s²) and convert to g.
-
-    Confirmed m/s², not g: at peak propulsion the longitudinal value tracked
-    ~0.45 g (≈4.4 m/s²) — sane as m/s², impossible as raw g.
-    """
-    raw = value_as_float(value)
-    return None if raw is None else raw / STANDARD_GRAVITY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -134,8 +99,6 @@ async def async_setup_entry(
             SpeedSensor(coordinator),
             DistanceToArrivalSensor(coordinator),
             TimeToArrivalSensor(coordinator),
-            TrafficDelaySensor(coordinator),
-            OdometerSensor(coordinator),
             GearSensor(coordinator),
             # Battery / range
             BatteryLevelSensor(coordinator),
@@ -143,14 +106,10 @@ async def async_setup_entry(
             EstBatteryRangeSensor(coordinator),
             RatedRangeSensor(coordinator),
             # Charging
-            ChargingStateSensor(coordinator),
-            ChargeRateSensor(coordinator),
             AcChargingPowerSensor(coordinator),
             DcChargingPowerSensor(coordinator),
             AcChargingEnergyInSensor(coordinator),
             DcChargingEnergyInSensor(coordinator),
-            ChargeAmpsSensor(coordinator),
-            ChargerVoltageSensor(coordinator),
             FastChargerPresentSensor(coordinator),
             ChargingCableTypeSensor(coordinator),
             ChargeLimitSocSensor(coordinator),
@@ -158,13 +117,6 @@ async def async_setup_entry(
             # Climate / cabin
             InsideTempSensor(coordinator),
             OutsideTempSensor(coordinator),
-            HvacLeftTempRequestSensor(coordinator),
-            HvacRightTempRequestSensor(coordinator),
-            # TPMS
-            TirePressureFlSensor(coordinator),
-            TirePressureFrSensor(coordinator),
-            TirePressureRlSensor(coordinator),
-            TirePressureRrSensor(coordinator),
             # Software update
             SoftwareVersionSensor(coordinator),
             SoftwareUpdateDownloadSensor(coordinator),
@@ -172,10 +124,6 @@ async def async_setup_entry(
             # Powertrain / performance
             MotorStatorTempFrontSensor(coordinator),
             MotorStatorTempRearSensor(coordinator),
-            MotorTorqueFrontSensor(coordinator),
-            MotorTorqueRearSensor(coordinator),
-            LateralAccelerationSensor(coordinator),
-            LongitudinalAccelerationSensor(coordinator),
             PackVoltageSensor(coordinator),
             PackCurrentSensor(coordinator),
             PackPowerSensor(coordinator),
@@ -338,33 +286,6 @@ class TimeToArrivalSensor(_BaseTelemetrySensor):
         )
 
 
-class TrafficDelaySensor(_BaseTelemetrySensor):
-    _signal_name = SIGNAL_ROUTE_TRAFFIC_DELAY
-    _attr_name = "Traffic delay"
-    _attr_device_class = SensorDeviceClass.DURATION
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
-    _attr_suggested_display_precision = 0
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_traffic_delay_telemetry"
-
-    def _handle(self, sample: SignalSample) -> None:
-        self._attr_native_value = value_as_float(sample.value)
-
-
-OdometerSensor = _scalar_sensor(
-    signal=SIGNAL_ODOMETER,
-    suffix="odometer_telemetry",
-    name="Odometer",
-    device_class=SensorDeviceClass.DISTANCE,
-    state_class=SensorStateClass.TOTAL_INCREASING,
-    unit=UnitOfLength.MILES,
-    precision=1,
-)
-
-
 class GearSensor(_BaseTelemetrySensor):
     """Friendly shift-state string (P/R/N/D) extracted from ShiftState enum."""
 
@@ -433,43 +354,6 @@ RatedRangeSensor = _scalar_sensor(
 # ---------------------------------------------------------------------------
 # Charging
 # ---------------------------------------------------------------------------
-class ChargingStateSensor(_BaseTelemetrySensor):
-    """Friendly charging state string (charging/disconnected/etc).
-
-    Tracks Tesla's ``DetailedChargeState`` enum, mapped to lower-snake-case
-    strings exposed as an ENUM sensor.
-    """
-
-    _signal_name = SIGNAL_DETAILED_CHARGE_STATE
-    _attr_name = "Charging state"
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = [
-        "disconnected",
-        "no_power",
-        "starting",
-        "charging",
-        "complete",
-        "stopped",
-    ]
-    _attr_state_class = None
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_charging_state_telemetry"
-
-    def _handle(self, sample: SignalSample) -> None:
-        self._attr_native_value = value_as_charge_state(sample.value)
-
-
-ChargeRateSensor = _scalar_sensor(
-    signal=SIGNAL_CHARGE_RATE_MILES_PER_HOUR,
-    suffix="charge_rate_telemetry",
-    name="Charge rate",
-    device_class=SensorDeviceClass.SPEED,
-    unit=UnitOfSpeed.MILES_PER_HOUR,
-    precision=1,
-)
-
 AcChargingPowerSensor = _scalar_sensor(
     signal=SIGNAL_AC_CHARGING_POWER,
     suffix="ac_charging_power_telemetry",
@@ -507,25 +391,6 @@ DcChargingEnergyInSensor = _scalar_sensor(
     unit=UnitOfEnergy.KILO_WATT_HOUR,
     precision=2,
 )
-
-ChargeAmpsSensor = _scalar_sensor(
-    signal=SIGNAL_CHARGE_AMPS,
-    suffix="charge_amps_telemetry",
-    name="Charger current",
-    device_class=SensorDeviceClass.CURRENT,
-    unit=UnitOfElectricCurrent.AMPERE,
-    precision=1,
-)
-
-ChargerVoltageSensor = _scalar_sensor(
-    signal=SIGNAL_CHARGER_VOLTAGE,
-    suffix="charger_voltage_telemetry",
-    name="Charger voltage",
-    device_class=SensorDeviceClass.VOLTAGE,
-    unit=UnitOfElectricPotential.VOLT,
-    precision=0,
-)
-
 
 class FastChargerPresentSensor(_BaseTelemetrySensor):
     """Friendly fast-charger type (Supercharger/CCS/CHAdeMO/none).
@@ -641,47 +506,6 @@ OutsideTempSensor = _scalar_sensor(
     precision=1,
 )
 
-HvacLeftTempRequestSensor = _scalar_sensor(
-    signal=SIGNAL_HVAC_LEFT_TEMP_REQUEST,
-    suffix="hvac_left_temp_request_telemetry",
-    name="Climate left setpoint",
-    device_class=SensorDeviceClass.TEMPERATURE,
-    state_class=None,
-    unit=UnitOfTemperature.CELSIUS,
-    precision=1,
-)
-
-HvacRightTempRequestSensor = _scalar_sensor(
-    signal=SIGNAL_HVAC_RIGHT_TEMP_REQUEST,
-    suffix="hvac_right_temp_request_telemetry",
-    name="Climate right setpoint",
-    device_class=SensorDeviceClass.TEMPERATURE,
-    state_class=None,
-    unit=UnitOfTemperature.CELSIUS,
-    precision=1,
-)
-
-
-# ---------------------------------------------------------------------------
-# TPMS
-# ---------------------------------------------------------------------------
-def _tpms(signal: str, position: str) -> type[_BaseTelemetrySensor]:
-    return _scalar_sensor(
-        signal=signal,
-        suffix=f"tire_pressure_{position}_telemetry",
-        name=f"Tire pressure {position.replace('_', ' ')}",
-        device_class=SensorDeviceClass.PRESSURE,
-        unit=UnitOfPressure.BAR,
-        precision=2,
-    )
-
-
-TirePressureFlSensor = _tpms(SIGNAL_TPMS_PRESSURE_FL, "front_left")
-TirePressureFrSensor = _tpms(SIGNAL_TPMS_PRESSURE_FR, "front_right")
-TirePressureRlSensor = _tpms(SIGNAL_TPMS_PRESSURE_RL, "rear_left")
-TirePressureRrSensor = _tpms(SIGNAL_TPMS_PRESSURE_RR, "rear_right")
-
-
 # ---------------------------------------------------------------------------
 # Software update
 # ---------------------------------------------------------------------------
@@ -736,40 +560,6 @@ MotorStatorTempRearSensor = _scalar_sensor(
     device_class=SensorDeviceClass.TEMPERATURE,
     unit=UnitOfTemperature.CELSIUS,
     precision=0,
-)
-
-MotorTorqueFrontSensor = _scalar_sensor(
-    signal=SIGNAL_MOTOR_TORQUE_FRONT,
-    suffix="motor_torque_front_telemetry",
-    name="Front motor torque",
-    unit=UNIT_NEWTON_METRE,
-    precision=0,
-)
-
-MotorTorqueRearSensor = _scalar_sensor(
-    signal=SIGNAL_MOTOR_TORQUE_REAR,
-    suffix="motor_torque_rear_telemetry",
-    name="Rear motor torque",
-    unit=UNIT_NEWTON_METRE,
-    precision=0,
-)
-
-LateralAccelerationSensor = _scalar_sensor(
-    signal=SIGNAL_LATERAL_ACCELERATION,
-    suffix="lateral_acceleration_telemetry",
-    name="Lateral acceleration",
-    unit=UNIT_GRAVITY,
-    precision=2,
-    extractor=_value_as_g,
-)
-
-LongitudinalAccelerationSensor = _scalar_sensor(
-    signal=SIGNAL_LONGITUDINAL_ACCELERATION,
-    suffix="longitudinal_acceleration_telemetry",
-    name="Longitudinal acceleration",
-    unit=UNIT_GRAVITY,
-    precision=2,
-    extractor=_value_as_g,
 )
 
 PackVoltageSensor = _scalar_sensor(

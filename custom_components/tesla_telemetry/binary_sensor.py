@@ -1,7 +1,7 @@
 """Binary sensor entities for Tesla Fleet Telemetry.
 
-Covers door/window/lock/charge-port/charging-cable/charging-active/HVAC-on/
-sentry-armed/user-presence — i.e. signals whose useful value is on/off.
+Covers door/window/lock/charge-port/charging-cable/user-presence — i.e.
+signals whose useful value is on/off.
 
 Entities use ``has_entity_name`` — the vehicle name lives on the HA device
 and each entity carries only its functional name.
@@ -25,12 +25,9 @@ from .const import (
     DOMAIN,
     SIGNAL_CHARGE_PORT_DOOR_OPEN,
     SIGNAL_CHARGING_CABLE_TYPE,
-    SIGNAL_DETAILED_CHARGE_STATE,
     SIGNAL_DOOR_STATE,
     SIGNAL_DRIVER_SEAT_OCCUPIED,
-    SIGNAL_HVAC_POWER,
     SIGNAL_LOCKED,
-    SIGNAL_SENTRY_MODE,
     SIGNAL_WINDOW_FRONT_DRIVER,
     SIGNAL_WINDOW_FRONT_PASSENGER,
     SIGNAL_WINDOW_REAR_DRIVER,
@@ -45,7 +42,6 @@ from .values import (
     value_as_bool,
     value_as_door_state,
     value_as_enum_name,
-    value_charging_active,
     value_is_window_open,
 )
 
@@ -124,9 +120,6 @@ async def async_setup_entry(
             LockBinarySensor(coordinator),
             ChargePortBinarySensor(coordinator),
             ChargeCableBinarySensor(coordinator),
-            ChargingActiveBinarySensor(coordinator),
-            HvacPowerBinarySensor(coordinator),
-            SentryArmedBinarySensor(coordinator),
             UserPresentBinarySensor(coordinator),
         ]
     )
@@ -302,68 +295,6 @@ class ChargeCableBinarySensor(_BaseTelemetryBinarySensor):
             self._attr_is_on = None
             return
         self._attr_is_on = name not in ("CableTypeUnknown", "CableTypeSNA")
-
-
-class ChargingActiveBinarySensor(_BaseTelemetryBinarySensor):
-    """True while the car is actively pulling charge (Charging or Starting)."""
-
-    _signal_name = SIGNAL_DETAILED_CHARGE_STATE
-    _attr_name = "Charging"
-    _attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_charging_active_telemetry"
-
-    def _handle(self, sample: SignalSample) -> None:
-        self._attr_is_on = value_charging_active(sample.value)
-
-
-class HvacPowerBinarySensor(_BaseTelemetryBinarySensor):
-    """HVAC is "on" for any state other than Off/Unknown."""
-
-    _signal_name = SIGNAL_HVAC_POWER
-    _attr_name = "Climate"
-    _attr_device_class = BinarySensorDeviceClass.RUNNING
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_hvac_power_telemetry"
-
-    def _handle(self, sample: SignalSample) -> None:
-        name = value_as_enum_name(sample.value)
-        if name is None:
-            self._attr_is_on = None
-            return
-        self._attr_is_on = name not in ("HvacPowerStateOff", "HvacPowerStateUnknown")
-
-
-class SentryArmedBinarySensor(_BaseTelemetryBinarySensor):
-    """Sentry mode is "armed" when the enum reports Armed/Aware/Panic.
-
-    Idle/Off/Unknown are reported as off so the dashboard chip lights up only
-    when the car is actively watching its surroundings.
-    """
-
-    _signal_name = SIGNAL_SENTRY_MODE
-    _attr_name = "Sentry armed"
-    _attr_device_class = BinarySensorDeviceClass.SAFETY
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_sentry_armed_telemetry"
-
-    def _handle(self, sample: SignalSample) -> None:
-        name = value_as_enum_name(sample.value)
-        if name is None:
-            # Sentry status sometimes arrives as a plain bool on older firmware
-            self._attr_is_on = value_as_bool(sample.value)
-            return
-        self._attr_is_on = name in (
-            "SentryModeStateArmed",
-            "SentryModeStateAware",
-            "SentryModeStatePanic",
-        )
 
 
 UserPresentBinarySensor = _bool_binary_sensor(
