@@ -23,8 +23,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
-    UnitOfElectricCurrent,
-    UnitOfElectricPotential,
     UnitOfEnergy,
     UnitOfLength,
     UnitOfPower,
@@ -60,8 +58,6 @@ from .const import (
     SIGNAL_MOTOR_STATOR_TEMP_FRONT,
     SIGNAL_MOTOR_STATOR_TEMP_REAR,
     SIGNAL_OUTSIDE_TEMP,
-    SIGNAL_PACK_CURRENT,
-    SIGNAL_PACK_VOLTAGE,
     SIGNAL_RATED_RANGE,
     SIGNAL_SOC,
     SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT,
@@ -124,9 +120,6 @@ async def async_setup_entry(
             # Powertrain / performance
             MotorStatorTempFrontSensor(coordinator),
             MotorStatorTempRearSensor(coordinator),
-            PackVoltageSensor(coordinator),
-            PackCurrentSensor(coordinator),
-            PackPowerSensor(coordinator),
             ModuleTempMaxSensor(coordinator),
             ModuleTempMinSensor(coordinator),
             AvgBatteryTempSensor(coordinator),
@@ -562,24 +555,6 @@ MotorStatorTempRearSensor = _scalar_sensor(
     precision=0,
 )
 
-PackVoltageSensor = _scalar_sensor(
-    signal=SIGNAL_PACK_VOLTAGE,
-    suffix="pack_voltage_telemetry",
-    name="Battery pack voltage",
-    device_class=SensorDeviceClass.VOLTAGE,
-    unit=UnitOfElectricPotential.VOLT,
-    precision=1,
-)
-
-PackCurrentSensor = _scalar_sensor(
-    signal=SIGNAL_PACK_CURRENT,
-    suffix="pack_current_telemetry",
-    name="Battery pack current",
-    device_class=SensorDeviceClass.CURRENT,
-    unit=UnitOfElectricCurrent.AMPERE,
-    precision=1,
-)
-
 ModuleTempMaxSensor = _scalar_sensor(
     signal=SIGNAL_MODULE_TEMP_MAX,
     suffix="battery_module_temp_max_telemetry",
@@ -597,65 +572,6 @@ ModuleTempMinSensor = _scalar_sensor(
     unit=UnitOfTemperature.CELSIUS,
     precision=1,
 )
-
-
-class PackPowerSensor(_BaseTelemetrySensor):
-    """Instantaneous HV battery power, computed as pack voltage × current.
-
-    Tesla streams ``PackVoltage`` and ``PackCurrent`` separately, so this entity
-    multiplies the two latest samples to give live kW.  Positive = power leaving
-    the pack (propulsion / accessories); negative = power into the pack (regen /
-    charging).  It subscribes to *both* source signals and recomputes whenever
-    either one updates, rendering ``unavailable`` until both have arrived.
-
-    Note Tesla signs ``PackCurrent`` *negative* while discharging (confirmed
-    against drive history), so the raw ``V × I`` product is negative under
-    propulsion — we negate it here so this convenience sensor reads positive
-    for propulsion, like a Track-Mode power meter.  The raw ``PackCurrent``
-    sensor is left physically signed.
-    """
-
-    _attr_name = "Battery pack power"
-    _attr_device_class = SensorDeviceClass.POWER
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
-    _attr_suggested_display_precision = 1
-
-    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_pack_power_telemetry"
-
-    async def async_added_to_hass(self) -> None:
-        self._recompute()
-        if self._attr_native_value is None:
-            await self._async_restore_last()
-        for signal in (SIGNAL_PACK_VOLTAGE, SIGNAL_PACK_CURRENT):
-            self.async_on_remove(
-                async_dispatcher_connect(
-                    self.hass,
-                    signal_dispatcher_topic(self._coordinator.vin, signal),
-                    self._on_either_sample,
-                )
-            )
-
-    @callback
-    def _on_either_sample(self, sample: SignalSample) -> None:
-        self._recompute()
-        if self.hass is not None:
-            self.async_write_ha_state()
-
-    def _recompute(self) -> None:
-        v_sample = self._coordinator.get(SIGNAL_PACK_VOLTAGE)
-        i_sample = self._coordinator.get(SIGNAL_PACK_CURRENT)
-        if v_sample is None or i_sample is None:
-            self._attr_native_value = None
-            return
-        volts = value_as_float(v_sample.value)
-        amps = value_as_float(i_sample.value)
-        if volts is None or amps is None:
-            self._attr_native_value = None
-            return
-        self._attr_native_value = -(volts * amps) / 1000.0
 
 
 class AvgBatteryTempSensor(_BaseTelemetrySensor):

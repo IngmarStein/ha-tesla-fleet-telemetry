@@ -52,8 +52,6 @@ SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT = "SoftwareUpdateInstallationPercentComplete"
 SIGNAL_MOTOR_STATOR_TEMP_FRONT = "DiStatorTempF"
 SIGNAL_MOTOR_STATOR_TEMP_REAR = "DiStatorTempR"
 # HV battery pack
-SIGNAL_PACK_VOLTAGE = "PackVoltage"
-SIGNAL_PACK_CURRENT = "PackCurrent"
 SIGNAL_MODULE_TEMP_MAX = "ModuleTempMax"
 SIGNAL_MODULE_TEMP_MIN = "ModuleTempMin"
 
@@ -108,8 +106,6 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     # to keep them live without flooding (push-on-change still applies)
     SIGNAL_MOTOR_STATOR_TEMP_FRONT: 10,
     SIGNAL_MOTOR_STATOR_TEMP_REAR: 10,
-    SIGNAL_PACK_VOLTAGE: 5,
-    SIGNAL_PACK_CURRENT: 5,
     SIGNAL_MODULE_TEMP_MAX: 30,
     SIGNAL_MODULE_TEMP_MIN: 30,
 }
