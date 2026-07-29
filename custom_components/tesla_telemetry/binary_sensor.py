@@ -1,7 +1,7 @@
 """Binary sensor entities for Tesla Fleet Telemetry.
 
-Covers door/window/lock/charge-port/charging-cable/user-presence — i.e.
-signals whose useful value is on/off.
+Covers door/window/lock/charge-port/charging-cable/charging-active/
+user-presence — i.e. signals whose useful value is on/off.
 
 Entities use ``has_entity_name`` — the vehicle name lives on the HA device
 and each entity carries only its functional name.
@@ -25,6 +25,7 @@ from .const import (
     DOMAIN,
     SIGNAL_CHARGE_PORT_DOOR_OPEN,
     SIGNAL_CHARGING_CABLE_TYPE,
+    SIGNAL_DETAILED_CHARGE_STATE,
     SIGNAL_DOOR_STATE,
     SIGNAL_DRIVER_SEAT_OCCUPIED,
     SIGNAL_LOCKED,
@@ -42,6 +43,7 @@ from .values import (
     value_as_bool,
     value_as_door_state,
     value_as_enum_name,
+    value_charging_active,
     value_is_window_open,
 )
 
@@ -120,6 +122,7 @@ async def async_setup_entry(
             LockBinarySensor(coordinator),
             ChargePortBinarySensor(coordinator),
             ChargeCableBinarySensor(coordinator),
+            ChargingActiveBinarySensor(coordinator),
             UserPresentBinarySensor(coordinator),
         ]
     )
@@ -303,3 +306,18 @@ UserPresentBinarySensor = _bool_binary_sensor(
     name="User present",
     device_class=BinarySensorDeviceClass.OCCUPANCY,
 )
+
+
+class ChargingActiveBinarySensor(_BaseTelemetryBinarySensor):
+    """True while the car is actively pulling charge (Charging or Starting)."""
+
+    _signal_name = SIGNAL_DETAILED_CHARGE_STATE
+    _attr_name = "Charging"
+    _attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
+
+    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.vin}_charging_active_telemetry"
+
+    def _handle(self, sample: SignalSample) -> None:
+        self._attr_is_on = value_charging_active(sample.value)

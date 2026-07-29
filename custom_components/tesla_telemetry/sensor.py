@@ -47,6 +47,7 @@ from .const import (
     SIGNAL_CHARGING_CABLE_TYPE,
     SIGNAL_DC_CHARGING_ENERGY_IN,
     SIGNAL_DC_CHARGING_POWER,
+    SIGNAL_DETAILED_CHARGE_STATE,
     SIGNAL_EST_BATTERY_RANGE,
     SIGNAL_FAST_CHARGER_PRESENT,
     SIGNAL_GEAR,
@@ -73,6 +74,7 @@ from .coordinator import (
 )
 from .values import (
     value_as_bool,
+    value_as_charge_state,
     value_as_enum_name,
     value_as_float,
     value_as_string,
@@ -102,6 +104,7 @@ async def async_setup_entry(
             EstBatteryRangeSensor(coordinator),
             RatedRangeSensor(coordinator),
             # Charging
+            ChargingStateSensor(coordinator),
             AcChargingPowerSensor(coordinator),
             DcChargingPowerSensor(coordinator),
             AcChargingEnergyInSensor(coordinator),
@@ -347,6 +350,34 @@ RatedRangeSensor = _scalar_sensor(
 # ---------------------------------------------------------------------------
 # Charging
 # ---------------------------------------------------------------------------
+class ChargingStateSensor(_BaseTelemetrySensor):
+    """Friendly charging state string (charging/disconnected/etc).
+
+    Tracks Tesla's ``DetailedChargeState`` enum, mapped to lower-snake-case
+    strings exposed as an ENUM sensor.
+    """
+
+    _signal_name = SIGNAL_DETAILED_CHARGE_STATE
+    _attr_name = "Charging state"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [
+        "disconnected",
+        "no_power",
+        "starting",
+        "charging",
+        "complete",
+        "stopped",
+    ]
+    _attr_state_class = None
+
+    def __init__(self, coordinator: TeslaTelemetryCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.vin}_charging_state_telemetry"
+
+    def _handle(self, sample: SignalSample) -> None:
+        self._attr_native_value = value_as_charge_state(sample.value)
+
+
 AcChargingPowerSensor = _scalar_sensor(
     signal=SIGNAL_AC_CHARGING_POWER,
     suffix="ac_charging_power_telemetry",

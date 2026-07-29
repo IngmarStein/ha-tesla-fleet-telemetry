@@ -20,6 +20,7 @@ SIGNAL_SOC = "Soc"
 SIGNAL_EST_BATTERY_RANGE = "EstBatteryRange"
 SIGNAL_RATED_RANGE = "RatedRange"
 # ----- Charging -----
+SIGNAL_DETAILED_CHARGE_STATE = "DetailedChargeState"
 SIGNAL_AC_CHARGING_POWER = "ACChargingPower"
 SIGNAL_DC_CHARGING_POWER = "DCChargingPower"
 SIGNAL_AC_CHARGING_ENERGY_IN = "ACChargingEnergyIn"
@@ -69,7 +70,14 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_DESTINATION_LOCATION: 30,
     SIGNAL_MILES_TO_ARRIVAL: 15,
     SIGNAL_MINUTES_TO_ARRIVAL: 15,
-    # charging — fluctuates while charging, idle otherwise
+    # charging — fluctuates while charging, idle otherwise.
+    # DetailedChargeState is the exception: a discrete enum (Disconnected /
+    # NoPower / Starting / Charging / Complete) that moves a handful of times
+    # per session, so it belongs with the push-on-change group below at 1 s
+    # rather than the throttled power/energy signals. Measured against the
+    # by_signal counter, its nearest analogues cost 3-4 signals per session
+    # (FastChargerPresent, ChargingCableType) — ~0.1% of stream volume.
+    SIGNAL_DETAILED_CHARGE_STATE: 1,
     SIGNAL_AC_CHARGING_POWER: 10,
     SIGNAL_DC_CHARGING_POWER: 10,
     SIGNAL_AC_CHARGING_ENERGY_IN: 30,
