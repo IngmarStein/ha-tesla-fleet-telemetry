@@ -141,11 +141,17 @@ class RouteTracker(_BaseTelemetryTracker):
         self._destination_name: str | None = None
 
     @property
-    def location_name(self) -> str | None:
-        """Returning a non-None value here makes HA use it as the state
-        directly, bypassing zone-from-lat/lon resolution: the state is the
-        in-car navigation destination name."""
-        return self._destination_name
+    def state(self) -> str | None:
+        """State is the in-car navigation destination name when one is set.
+
+        Overriding ``state`` — rather than the deprecated ``location_name``
+        property, which TrackerEntity removes in HA 2027.7 — lets us report
+        the destination name directly. With no active destination we defer to
+        the base TrackerEntity, which resolves home / not_home / <zone> from
+        the destination lat/lon."""
+        if self._destination_name is not None:
+            return self._destination_name
+        return super().state
 
     async def async_added_to_hass(self) -> None:
         if (
