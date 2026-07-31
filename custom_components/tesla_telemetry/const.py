@@ -118,6 +118,83 @@ DEFAULT_INTERVALS_SECONDS: dict[str, int] = {
     SIGNAL_MODULE_TEMP_MIN: 30,
 }
 
+# Curated grouping of the default signals into collapsible sections for the
+# options flow. Every key of DEFAULT_INTERVALS_SECONDS must appear in exactly
+# one category (guarded by tests/test_signals.py). Signals the user adds from
+# the full Tesla catalog that aren't listed here surface under a synthetic
+# "Additional signals" section instead.
+SIGNAL_CATEGORIES: dict[str, list[str]] = {
+    "driving": [
+        SIGNAL_LOCATION,
+        SIGNAL_VEHICLE_SPEED,
+        SIGNAL_GEAR,
+        SIGNAL_DESTINATION_NAME,
+        SIGNAL_DESTINATION_LOCATION,
+        SIGNAL_MILES_TO_ARRIVAL,
+        SIGNAL_MINUTES_TO_ARRIVAL,
+    ],
+    "battery": [
+        SIGNAL_BATTERY_LEVEL,
+        SIGNAL_SOC,
+        SIGNAL_EST_BATTERY_RANGE,
+        SIGNAL_RATED_RANGE,
+    ],
+    "charging": [
+        SIGNAL_DETAILED_CHARGE_STATE,
+        SIGNAL_AC_CHARGING_POWER,
+        SIGNAL_DC_CHARGING_POWER,
+        SIGNAL_AC_CHARGING_ENERGY_IN,
+        SIGNAL_DC_CHARGING_ENERGY_IN,
+        SIGNAL_FAST_CHARGER_PRESENT,
+        SIGNAL_CHARGING_CABLE_TYPE,
+        SIGNAL_CHARGE_LIMIT_SOC,
+        SIGNAL_TIME_TO_FULL_CHARGE,
+        SIGNAL_CHARGE_PORT_DOOR_OPEN,
+    ],
+    "climate": [
+        SIGNAL_INSIDE_TEMP,
+        SIGNAL_OUTSIDE_TEMP,
+        SIGNAL_HVAC_AC_ENABLED,
+        SIGNAL_HVAC_AUTO_MODE,
+    ],
+    "body": [
+        SIGNAL_DOOR_STATE,
+        SIGNAL_WINDOW_FRONT_DRIVER,
+        SIGNAL_WINDOW_FRONT_PASSENGER,
+        SIGNAL_WINDOW_REAR_DRIVER,
+        SIGNAL_WINDOW_REAR_PASSENGER,
+        SIGNAL_LOCKED,
+        SIGNAL_DRIVER_SEAT_OCCUPIED,
+    ],
+    "software": [
+        SIGNAL_SOFTWARE_UPDATE_VERSION,
+        SIGNAL_SOFTWARE_UPDATE_DOWNLOAD_PCT,
+        SIGNAL_SOFTWARE_UPDATE_INSTALL_PCT,
+    ],
+    "powertrain": [
+        SIGNAL_MOTOR_STATOR_TEMP_FRONT,
+        SIGNAL_MOTOR_STATOR_TEMP_REAR,
+        SIGNAL_MODULE_TEMP_MAX,
+        SIGNAL_MODULE_TEMP_MIN,
+    ],
+}
+
+# Per-signal overrides configured through the options flow, stored on
+# ``entry.options`` as ``{signal_name: interval_seconds}``. A stored 0 disables
+# a signal that's on by default; a positive value overrides its interval. Only
+# deviations from DEFAULT_INTERVALS_SECONDS are stored, so an entry with no
+# overrides pushes exactly the default config above.
+CONF_SIGNAL_OVERRIDES = "signal_overrides"
+
+# Interval assigned to a catalog signal the moment it's added from the full
+# Tesla catalog (an added signal has no default of its own).
+DEFAULT_NEW_SIGNAL_INTERVAL = 60
+
+# Bounds for a per-signal minimum-refresh interval (seconds). 0 is accepted in
+# the form as the "disable this signal" sentinel; enabled signals are >= MIN.
+SIGNAL_INTERVAL_MIN = 1
+SIGNAL_INTERVAL_MAX = 86_400
+
 # Named interval presets.  ``high_rate`` rewrites Location/VehicleSpeed down to
 # 1s for live trace / driving log style use; all other signals (Gear, charging,
 # etc.) keep their default ceilings.  Apply via the

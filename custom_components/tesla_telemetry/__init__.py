@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client, config_entry_oauth2_flow
 
 from .const import (
+    CONF_LAST_SYNC_AT,
     CONF_PRIVATE_KEY_PEM,
     CONF_PROXY_SECRET,
     CONF_REGION,
@@ -20,6 +21,7 @@ from .const import (
 from .coordinator import TeslaTelemetryCoordinator
 from .receiver import TeslaTelemetryView
 from .services import async_register_services, async_schedule_auto_resync
+from .signals import resolve_effective_intervals
 from .tesla_api import TeslaApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +68,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     client_secret = getattr(implementation, "client_secret", "")
 
     coordinator = TeslaTelemetryCoordinator(hass, vin, vehicle_name)
+    # Seed the staleness map from the entry's resolved config (defaults +
+    # options overrides + preset) so disabled/retuned signals are judged
+    # against their configured interval, not the hardcoded default.
+    coordinator.effective_intervals = resolve_effective_intervals(entry)
 
     api = TeslaApi(
         aiohttp_client.async_get_clientsession(hass),
@@ -102,6 +108,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "vin": vin,
         "api": api,
+        # Last config we pushed to the car, so the options-update listener can
+        # skip redundant re-pushes. Assume the car already holds the current
+        # resolved config (bootstrap/auto-resync keep it reconciled).
+        "pushed_intervals": dict(coordinator.effective_intervals),
     }
 
     async_register_services(hass)
@@ -110,10 +120,71 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # No-op until the user has run `bootstrap` at least once.
     entry.async_on_unload(async_schedule_auto_resync(hass, entry))
 
+    # Re-push the telemetry config whenever the user edits signals/intervals
+    # via the options flow, so changes take effect without waiting a day.
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+
     if PLATFORMS:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+
+async def _async_options_updated(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """React to an options change (per-signal enable/interval edits).
+
+    Refresh the coordinator's staleness map and re-push the telemetry config
+    so edits reach the vehicle immediately rather than waiting for the daily
+    auto-resync. Entities are not reloaded — the entity set is static, so a
+    disabled signal's entity simply stops receiving and goes unavailable.
+    """
+    record = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if not record:
+        return
+    coordinator: TeslaTelemetryCoordinator = record["coordinator"]
+    new_intervals = resolve_effective_intervals(entry)
+    coordinator.effective_intervals = new_intervals
+
+    # Skip a redundant push when the effective config is unchanged — e.g. only
+    # the cost rate was edited, or this fired from our own last_sync stamp
+    # below (which breaks what would otherwise be an update loop).
+    if record.get("pushed_intervals") == new_intervals:
+        return
+
+    # Don't push for an entry that hasn't been bootstrapped/authorized yet; its
+    # first bootstrap will push the current config. Record the marker so an
+    # unrelated later update doesn't push either.
+    if not entry.data.get(CONF_LAST_SYNC_AT):
+        record["pushed_intervals"] = new_intervals
+        return
+
+    api = record.get("api")
+    if api is None:
+        return
+
+    from .services import _build_telemetry_config, _stamp_last_sync
+    from .tls_ca import DEFAULT_CA_BUNDLE_PEM
+
+    cfg = _build_telemetry_config(entry, DEFAULT_CA_BUNDLE_PEM.strip() + "\n")
+    try:
+        result = await api.set_fleet_telemetry_config(entry.data[CONF_VIN], cfg)
+    except Exception as err:  # noqa: BLE001 — never raise from an update listener
+        _LOGGER.warning(
+            "tesla_telemetry: options-change re-push failed for vin=%s: %s",
+            entry.data[CONF_VIN],
+            err,
+        )
+        return
+    record["pushed_intervals"] = new_intervals
+    _stamp_last_sync(hass, entry)
+    _LOGGER.info(
+        "tesla_telemetry: options change re-pushed telemetry config for "
+        "vin=%s — %s",
+        entry.data[CONF_VIN],
+        result,
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

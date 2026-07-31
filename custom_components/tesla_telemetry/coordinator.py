@@ -70,6 +70,12 @@ class TeslaTelemetryCoordinator:
         self.signals_since_start = 0
         self.restored_signal_base = 0
         self.signal_counts: Counter[str] = Counter()
+        # Effective per-signal intervals used for staleness. Seeded to the
+        # built-in defaults and refreshed by __init__.async_setup_entry (and
+        # its options-update listener) from the entry's resolved config, so
+        # staleness tracks whatever interval the signal is actually configured
+        # at rather than the hardcoded default.
+        self.effective_intervals: dict[str, int] = dict(DEFAULT_INTERVALS_SECONDS)
         # Every entity for this vehicle attaches to one HA device, named
         # after the vehicle so multiple Teslas stay cleanly separated.
         self.device_info = DeviceInfo(
@@ -113,6 +119,6 @@ class TeslaTelemetryCoordinator:
         sample = self._samples.get(name)
         if sample is None:
             return True
-        interval = DEFAULT_INTERVALS_SECONDS.get(name, 60)
+        interval = self.effective_intervals.get(name, 60)
         cutoff = (now or time.time()) - interval * STALE_INTERVAL_MULTIPLIER
         return sample.received_at < cutoff

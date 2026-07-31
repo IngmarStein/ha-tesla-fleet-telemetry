@@ -45,11 +45,10 @@ from .const import (
     CONF_PORT,
     CONF_PRIVATE_KEY_PEM,
     CONF_VIN,
-    DEFAULT_INTERVALS_SECONDS,
     DOMAIN,
-    INTERVAL_PRESET_DEFAULT,
     INTERVAL_PRESET_OVERRIDES,
 )
+from .signals import resolve_effective_intervals
 from .tesla_api import TelemetryConfig, TelemetryFieldConfig, TeslaApi
 from .tls_ca import DEFAULT_CA_BUNDLE_PEM
 
@@ -123,16 +122,14 @@ def _entry_api(hass: HomeAssistant, entry: ConfigEntry) -> TeslaApi:
 
 
 def _resolve_intervals(entry: ConfigEntry) -> dict[str, int]:
-    """Apply the entry's saved preset overrides on top of the defaults.
+    """The ``{signal: interval}`` map to push to Tesla for this entry.
 
-    The resulting dict is what we push to Tesla — defaults for everything,
-    overridden per-signal by the active preset.
+    Delegates to :func:`signals.resolve_effective_intervals`, which layers the
+    built-in defaults, the user's per-signal options-flow overrides, and the
+    active interval preset. Kept as a thin wrapper so the service handlers and
+    ``_build_telemetry_config`` have a stable local name.
     """
-    preset = entry.data.get(CONF_INTERVAL_PRESET, INTERVAL_PRESET_DEFAULT)
-    overrides = INTERVAL_PRESET_OVERRIDES.get(preset, {})
-    intervals = dict(DEFAULT_INTERVALS_SECONDS)
-    intervals.update(overrides)
-    return intervals
+    return resolve_effective_intervals(entry)
 
 
 def _build_telemetry_config(entry: ConfigEntry, ca_pem: str) -> TelemetryConfig:
