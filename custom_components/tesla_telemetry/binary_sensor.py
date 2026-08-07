@@ -282,7 +282,22 @@ ChargePortBinarySensor = _bool_binary_sensor(
 
 class ChargeCableBinarySensor(_BaseTelemetryBinarySensor):
     """A cable is present whenever ``ChargingCableType`` reports anything
-    other than ``Unknown`` / ``SNA`` (Signal Not Available)."""
+    other than ``Unknown`` / ``SNA`` (Signal Not Available).
+
+    THE CAR DOES NOT USE ``CableTypeSNA`` TO SAY "UNPLUGGED" — it sends the
+    signal with the protobuf ``invalid`` flag set, so ``value_as_enum_name``
+    returns None.  Reporting that as ``None`` (HA ``unknown``) meant this
+    entity NEVER produced ``off``: measured over 30 days on a real car,
+    11 × ``on``, 46 × ``unknown``, zero ``off``.  Downstream that pushed every
+    unplug onto the polled Fleet sensor, which lagged 6-27 min behind the
+    physical unplug and hid the dashboard's driving cards for the first
+    minutes of each post-charge drive.
+
+    ``_handle`` only ever runs on a real sample (``_on_sample``, or a cached
+    one at ``async_added_to_hass``), so an undecodable sample is the car
+    actively declining to name a cable = no cable.  With no sample at all the
+    entity still restores/stays unknown, which is the correct startup state.
+    """
 
     _signal_name = SIGNAL_CHARGING_CABLE_TYPE
     _attr_name = "Charge cable"
@@ -295,7 +310,8 @@ class ChargeCableBinarySensor(_BaseTelemetryBinarySensor):
     def _handle(self, sample: SignalSample) -> None:
         name = value_as_enum_name(sample.value)
         if name is None:
-            self._attr_is_on = None
+            # invalid / undecodable sample ⇒ no cable (see class docstring)
+            self._attr_is_on = False
             return
         self._attr_is_on = name not in ("CableTypeUnknown", "CableTypeSNA")
 
