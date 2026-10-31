@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.13.0](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/compare/v0.12.0...v0.13.0) (2026-10-31)
+
+
+### Features
+
+* add a Self-driving distance sensor (SelfDrivingMilesSinceReset) ([#32](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/32)) ([0e6d048](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/0e6d04869b8be867e487bff128796841a202720e))
+* add an opt-in navigate service that sends a destination to the car ([#7](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/7)) ([a361a9e](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/a361a9e2819123c0edb14ad3162cb8b7680c566c))
+* add EU region support in the config flow ([#2](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/2)) ([d4ec372](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/d4ec372af6e8d82f62fea887aeb6fecd9895dbf1))
+* give catalog-added signals a generic sensor, added and removed live ([#17](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/17)) ([57c675c](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/57c675c8cbcdb7b62f6d03923555bcf52db1c619))
+* serve TeslaMate's streaming protocol from the telemetry stream ([#46](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/46)) ([7961164](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/7961164e7fe393806baefc8499127aa8a7af2ed7))
+* stream GpsHeading as a Heading sensor and a heading attribute on Location ([#15](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/15)) ([14ef883](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/14ef883b090c6a32bdbcb17bb40e6bb5c84c1dfd))
+
+
+### Bug Fixes
+
+* add Let's Encrypt Gen-Y roots (YE/YR) to the default CA bundle ([f33ad2b](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/f33ad2b2c20aabbdcb1bf8c8ab9b3143e4df5c44))
+* harden the telemetry endpoint and admin services ahead of HACS review ([#26](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/26)) ([6ebf041](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/6ebf0418bd6718ffae046a9c731f89e4d53ff8eb))
+* hold the charge-energy-added peak within a session ([#47](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/47)) ([8244221](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/8244221a34a59410371d5e85aa4bb5b8e2b8cdec))
+* log an unrecognised VIN with %r so it can't forge a log line ([#21](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/21)) ([5695ebb](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/5695ebb8862e2ca13fd60ff65784b8635245619b))
+* renew a stamped config the car no longer reports ([#44](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/44)) ([4ff5a00](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/4ff5a00842a6c52e1a96ad6c3981125f755634ff))
+* renew an inherited telemetry config instead of skipping forever ([#36](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/36)) ([4efa97d](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/4efa97dcf01fc6c4a9d0eb9c3958e81fedc04210))
+* renew the telemetry config when the car's copy is about to expire ([#41](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/41)) ([a577d3d](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/a577d3da934da87801ee1766c1e420143f048345))
+* request vehicle_location scope and proxy nginx root path ([#13](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/13)) ([f401214](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/f40121440147eede4780b94c53b44827291af87e))
+* send the minimum_delta Tesla requires for SelfDrivingMilesSinceReset ([#34](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/34)) ([f05aa13](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/f05aa13b71bd34546120bf033f8cf82d44b65fdd))
+* ship a brand icon so HA and HACS show one ([c1ad735](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/c1ad735175a38ab4f84a80cc6fc381008287ff81))
+* ship the upstream Apache-2.0 license with the vendored proto files ([#28](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/28)) ([305db4b](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/305db4b1145838db34f20e31d7b0f495bce14041))
+* stream the navigation destination at 1 s instead of 30 s ([#9](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/issues/9)) ([9b35ad6](https://github.com/IngmarStein/ha-tesla-fleet-telemetry/commit/9b35ad6e2f36654e7f665511153bf5e612361b88))
+
 ## [0.12.0](https://github.com/johnbr/ha-tesla-fleet-telemetry/compare/v0.11.5...v0.12.0) (2026-10-31)
 
 
